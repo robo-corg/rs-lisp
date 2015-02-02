@@ -1,0 +1,5 @@
+[package]
+
+name = "rs-lisp"
+version = "0.0.1"
+authors = ["Andrew McHarg <amcharg@gmail.com>"]
