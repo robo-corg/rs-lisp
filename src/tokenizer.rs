@@ -1,5 +1,6 @@
 #[derive(PartialEq)]
 #[derive(Debug)]
+#[derive(Clone)]
 pub enum Token {
     OpenParen,
     CloseParen,
