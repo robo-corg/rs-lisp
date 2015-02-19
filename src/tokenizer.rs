@@ -4,10 +4,11 @@
 pub enum Token {
     OpenParen,
     CloseParen,
-    Ident(String)
+    Ident(String),
+    StrTok(String),
 }
 
-fn tokenize(input: &str) -> Vec<Token> {
+pub fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens = vec![];
 
     let mut iter = input.chars().peekable();
@@ -18,6 +19,21 @@ fn tokenize(input: &str) -> Vec<Token> {
                 match c {
                     '(' => tokens.push(Token::OpenParen),
                     ')' => tokens.push(Token::CloseParen),
+                    '"' => {
+                        let mut s = String::new();
+
+                        loop {
+                            match iter.next() {
+                                Some('"') => { break; },
+                                Some(str_ch) => {
+                                    s.push(str_ch);
+                                },
+                                None => { panic!("Expected end of string quote"); }
+                            }
+                        }
+
+                        tokens.push(Token::StrTok(s));
+                    },
                     ' ' | '\n' => { },
                     _ => {
                         let mut ident_str:String = String::new();
@@ -64,6 +80,11 @@ fn parens_test() {
 #[test]
 fn single_identifier_test() {
     assert_eq!(tokenize("test"), [Token::Ident("test".to_string())]);
+}
+
+#[test]
+fn single_str_test() {
+    assert_eq!(tokenize("\"test\""), [Token::StrTok("test".to_string())]);
 }
 
 #[test]
