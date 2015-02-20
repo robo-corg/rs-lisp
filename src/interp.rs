@@ -1,7 +1,6 @@
-use runtime::Scope;
-use runtime::Expr;
+use runtime::{Expr, Scope, RuntimeResult};
 
-fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> Result<Expr, &'static str> {
+fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
     match expr {
         &Expr::BuiltInFun(builtin) => {
             let fun = builtin.fun;
@@ -13,7 +12,7 @@ fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> Result<Expr, &'stati
     }
 }
 
-fn eval_expr(scope:&mut Scope, expr:&Expr) -> Result<Expr, &'static str> {
+fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
     return match expr {
         &Expr::SExpr(ref sub_exprs) => {
             let evaled:Vec<Expr> = try!(sub_exprs.iter().map(|sub_expr| eval_expr(scope, sub_expr)).collect());
@@ -28,7 +27,7 @@ fn eval_expr(scope:&mut Scope, expr:&Expr) -> Result<Expr, &'static str> {
     };
 }
 
-pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> Result<Expr, &'static str>{
+pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> RuntimeResult{
     let mut last_expr = Expr::Nil;
 
     for expr in exprs.iter() {

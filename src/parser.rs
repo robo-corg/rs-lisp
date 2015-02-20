@@ -1,10 +1,10 @@
 use tokenizer::Token;
 use std::iter::Peekable;
-use runtime::Expr;
+use runtime::{Expr, RuntimeResult};
 
 
 
-fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> Result<Expr, &'static str> where I: Iterator<Item=(&'b Token)>{
+fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Iterator<Item=(&'b Token)>{
     let mut exprs = Vec::new();
 
     // Parse open paren
@@ -35,7 +35,7 @@ fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> Result<Expr, &'static str>
     return Ok(Expr::SExpr(exprs));
 }
 
-fn parse_expr<'a, 'b, I>(piter: &mut Peekable<I>) -> Result<Expr, &'static str> where I: Iterator<Item=(&'b Token)>{
+fn parse_expr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Iterator<Item=(&'b Token)>{
     loop {
         match piter.peek() {
             Some(&&Token::OpenParen) => {

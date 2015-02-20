@@ -6,9 +6,11 @@ use std::fmt::Formatter;
 use std::fmt::Error;
 use std::collections::HashMap;
 
+pub type RuntimeResult = Result<Expr, &'static str>;
+
 pub struct BuiltInFun<'a> {
     name:&'a str,
-    pub fun:fn (scope:&mut Scope, &[Expr]) -> Result<Expr, &'static str>,
+    pub fun:fn (scope:&mut Scope, &[Expr]) -> RuntimeResult,
 }
 
 impl<'a> PartialEq for BuiltInFun<'a> {
@@ -35,7 +37,7 @@ pub enum Expr {
 }
 
 #[allow(dead_code)]
-fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> Result<Expr, &'static str> {
+fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> RuntimeResult {
     for arg in args.iter() {
         match arg {
             &Expr::SExpr(_) => {
@@ -56,14 +58,14 @@ fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> Result<Expr, &'static str> {
     return Ok(Expr::Nil);
 }
 
-fn do_println_builtin(scope:&mut Scope, args:&[Expr]) -> Result<Expr, &'static str> {
+fn do_println_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
     let res = do_print_builtin(scope, args);
     println!("");
     return res;
 }
 
 #[allow(dead_code)]
-fn do_set_builtin(scope:&mut Scope, args:&[Expr]) -> Result<Expr, &'static str> {
+fn do_set_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
     if args.len() != 2 {
         return Err("Invalid number of arguments");
     }
