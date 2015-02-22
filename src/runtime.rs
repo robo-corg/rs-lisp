@@ -1,15 +1,15 @@
 #![feature(io)]
 
 use std::old_io::stdio::print;
-use std::fmt::Debug;
-use std::fmt::Formatter;
-use std::fmt::Error;
+use std::fmt::{Debug, Display, Formatter, Error};
 use std::collections::HashMap;
 
-pub type RuntimeResult = Result<Expr, &'static str>;
+use builtin::add_builtins;
+
+pub type RuntimeResult = Result<Expr, String>;
 
 pub struct BuiltInFun<'a> {
-    name:&'a str,
+    pub name:&'a str,
     pub fun:fn (scope:&mut Scope, &[Expr]) -> RuntimeResult,
 }
 
@@ -33,60 +33,24 @@ pub enum Expr {
     Ident(String),
     StrLit(String),
     BuiltInFun(&'static BuiltInFun<'static>),
+    Macro(&'static BuiltInFun<'static>),
+    Integer(i64),
     Nil
 }
 
-#[allow(dead_code)]
-fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> RuntimeResult {
-    for arg in args.iter() {
-        match arg {
-            &Expr::SExpr(_) => {
-                print("()");
-            },
-            &Expr::Ident(ref s) => {
-                print(s);
-            },
-            &Expr::StrLit(ref s) => {
-                print(s);
-            },
-            misc => {
-                print!("{:?}", misc);
-            }
-        }
+impl Display for Expr {
+    fn fmt(&self, f:&mut Formatter) -> Result<(), Error> {
+        return match self {
+            &Expr::SExpr(_) => f.write_str("SExpr"),
+            &Expr::Ident(_) => f.write_str("Identifier"),
+            &Expr::StrLit(ref s) => f.write_fmt(format_args!("String Literal {}", s)),
+            &Expr::BuiltInFun(fun) => f.write_fmt(format_args!("function {}", fun.name)),
+            &Expr::Macro(fun) => f.write_fmt(format_args!("macro {}", fun.name)),
+            &Expr::Integer(n) => f.write_fmt(format_args!("Integer {}", n)),
+            &Expr::Nil => f.write_str("Nil"),
+        };
     }
-
-    return Ok(Expr::Nil);
 }
-
-fn do_println_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
-    let res = do_print_builtin(scope, args);
-    println!("");
-    return res;
-}
-
-#[allow(dead_code)]
-fn do_set_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
-    if args.len() != 2 {
-        return Err("Invalid number of arguments");
-    }
-
-    let name = try!(match args[0] {
-        Expr::StrLit(ref s) => Ok(s),
-        _ => Err("Invalid argument: name must be string")
-    });
-
-    let ref value = args[1];
-
-    scope.defs.insert(name.clone(), value.clone());
-    return Ok(value.clone());
-}
-
-#[allow(dead_code)]
-static BUILTINS : [BuiltInFun<'static>;3] = [
-    BuiltInFun{ name: "print", fun: do_print_builtin},
-    BuiltInFun{ name: "println", fun: do_println_builtin},
-    BuiltInFun{ name: "set", fun: do_set_builtin}
-];
 
 pub struct Scope {
     pub defs:HashMap<String, Expr>,
@@ -96,15 +60,9 @@ impl Scope {
     pub fn new() -> Scope {
         let mut scope = Scope{defs:HashMap::new()};
 
-        scope.load_builtins();
+        add_builtins(&mut scope);
 
         return scope;
-    }
-
-    fn load_builtins(&mut self) {
-        for builtin in BUILTINS.iter() {
-            self.defs.insert(builtin.name.to_string(), Expr::BuiltInFun(builtin));
-        }
     }
 
     pub fn lookup_ident(&self, s:&str) -> Option<&Expr> {

@@ -1,14 +1,31 @@
+use std::fmt::{Display, Formatter, Error};
+
 #[derive(PartialEq)]
 #[derive(Debug)]
 #[derive(Clone)]
 pub enum Token {
     OpenParen,
     CloseParen,
+    OpenBrace,
+    CloseBrace,
     Ident(String),
     StrTok(String),
 }
 
-type LexicalError = &'static str;
+impl Display for Token {
+    fn fmt(&self, f:&mut Formatter) -> Result<(), Error> {
+        return match self {
+            &Token::OpenParen  => f.write_str("("),
+            &Token::CloseParen => f.write_str(")"),
+            &Token::OpenBrace  => f.write_str("["),
+            &Token::CloseBrace => f.write_str("]"),
+            &Token::Ident(ref s)  => f.write_str(s),
+            &Token::StrTok(ref s) => f.write_fmt(format_args!("\"{}\"", s)),
+        };
+    }
+}
+
+type LexicalError = String;
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
     let mut tokens = vec![];
@@ -21,6 +38,8 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
                 match c {
                     '(' => tokens.push(Token::OpenParen),
                     ')' => tokens.push(Token::CloseParen),
+                    '[' => tokens.push(Token::OpenBrace),
+                    ']' => tokens.push(Token::CloseBrace),
                     '"' => {
                         let mut s = String::new();
 
@@ -30,7 +49,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
                                 Some(str_ch) => {
                                     s.push(str_ch);
                                 },
-                                None => { return Err("Expected end of string quote"); }
+                                None => { return Err("Expected end of string quote got EOF".to_string()); }
                             }
                         }
 
@@ -50,7 +69,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
 
                         loop {
                             let cont = match iter.peek() {
-                                Some(next) => !("() \n;".contains_char(*next)),
+                                Some(next) => !("[]() \n;".contains_char(*next)),
                                 None => false
                             };
 
@@ -83,6 +102,11 @@ fn empty_program_test() {
 #[test]
 fn parens_test() {
     assert_eq!(tokenize("()"), Ok(vec!(Token::OpenParen, Token::CloseParen)));
+}
+
+#[test]
+fn braces_test() {
+    assert_eq!(tokenize("[]"), Ok(vec!(Token::OpenBrace, Token::CloseBrace)));
 }
 
 #[test]

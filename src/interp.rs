@@ -6,8 +6,20 @@ fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
             let fun = builtin.fun;
             fun(scope, args)
         },
-        _ => {
-            return Err("Expected function");
+        unexpected => {
+            return Err(format!("Expected function not {}", unexpected));
+        }
+    }
+}
+
+fn expand_macro(scope:&mut Scope, mac:&Expr, args:&[Expr]) -> RuntimeResult {
+    match mac {
+        &Expr::Macro(mac_fun) => {
+            let fun = mac_fun.fun;
+            return fun(scope, args);
+        },
+        unexpected => {
+            return Err(format!("Expected macro not {}", unexpected));
         }
     }
 }
@@ -15,13 +27,24 @@ fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
 fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
     return match expr {
         &Expr::SExpr(ref sub_exprs) => {
-            let evaled:Vec<Expr> = try!(sub_exprs.iter().map(|sub_expr| eval_expr(scope, sub_expr)).collect());
+            let lead_expr = try!(eval_expr(scope, &sub_exprs[0]));
 
-            return call_expr(scope, &evaled[0], &evaled[1..]);
+            match lead_expr {
+                Expr::Macro(_) => {
+                    let expanded =try!(expand_macro(scope, &lead_expr, &sub_exprs[1..]));
+                    return eval_expr(scope, &expanded);
+                },
+                _ => {
+                    let evaled:Vec<Expr> = try!(sub_exprs[1..].iter().map(|sub_expr| eval_expr(scope, sub_expr)).collect());
+
+                    return call_expr(scope, &lead_expr, &evaled);
+
+                }
+            }
         },
         &Expr::Ident(ref ident) => match scope.lookup_ident(ident.as_slice()) {
             Some(ref value) => Ok((*value).clone()),
-            None => Err("Could not find value for ident")
+            None => Err(format!("Unknown identifier {}", ident))
         },
         val => Ok(val.clone())
     };
@@ -44,21 +67,14 @@ fn test_eval_sexpr() {
     let res = eval_expr(
         &mut scope,
         &Expr::SExpr(vec!(
-            Expr::Ident("set".to_string()),
-            Expr::StrLit("foo".to_string()),
-            Expr::StrLit("bananas".to_string())
+            Expr::Ident("+".to_string()),
+            Expr::Integer(3),
+            Expr::Integer(1)
         ))
     );
 
-    match res {
-        Err(msg) => { panic!(msg); }
-        _ => {}
-    }
-
-    scope.defs.insert("foo".to_string(), Expr::StrLit("bananas".to_string()));
-
     assert_eq!(
-        scope.lookup_ident(&"foo".to_string()),
-        Some(&Expr::StrLit("bananas".to_string()))
+        res,
+        Ok(Expr::Integer(4))
     );
 }

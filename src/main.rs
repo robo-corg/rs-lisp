@@ -9,21 +9,22 @@ mod runtime;
 mod parser;
 mod interp;
 mod read;
+mod builtin;
 
 use std::old_io::File;
-use runtime::{Expr, Scope};
+use runtime::{Expr, Scope, RuntimeResult};
 use read::read;
 use interp::eval;
 use std::str::from_utf8;
 use std::env::args;
 
-fn eval_file(scope:&mut Scope, filename:&str) -> Result<Expr, &'static str> {
+fn eval_file(scope:&mut Scope, filename:&str) -> RuntimeResult {
     return match File::open(&Path::new(filename)).read_to_end() {
         Ok(contents_bytes) => match from_utf8(contents_bytes.as_slice()) {
             Ok(contents) => eval(scope, try!(read(contents))),
-            Err(_) => Err("Error decoding file")
+            Err(_) => Err(format!("Error decoding file {}", filename))
         },
-        Err(_) => Err("Error reading file")
+        Err(_) => Err(format!("Error reading file {}", filename))
     };
 }
 
