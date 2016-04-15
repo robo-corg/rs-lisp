@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter, Error};
+use runtime;
 
 #[derive(PartialEq)]
 #[derive(Debug)]
@@ -25,7 +26,7 @@ impl Display for Token {
     }
 }
 
-type LexicalError = String;
+pub type LexicalError = runtime::Error;
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
     let mut tokens = vec![];
@@ -49,7 +50,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
                                 Some(str_ch) => {
                                     s.push(str_ch);
                                 },
-                                None => { return Err("Expected end of string quote got EOF".to_string()); }
+                                None => { return Err(LexicalError::from("Expected end of string quote got EOF")); }
                             }
                         }
 
@@ -69,7 +70,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
 
                         loop {
                             let cont = match iter.peek() {
-                                Some(next) => !("[]() \n;".contains_char(*next)),
+                                Some(next) => !("[]() \n;".contains(*next)),
                                 None => false
                             };
 
@@ -96,41 +97,41 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexicalError> {
 
 #[test]
 fn empty_program_test() {
-    assert_eq!(tokenize(""), Ok(vec!()));
+    assert_eq!(tokenize("").unwrap(), vec!());
 }
 
 #[test]
 fn parens_test() {
-    assert_eq!(tokenize("()"), Ok(vec!(Token::OpenParen, Token::CloseParen)));
+    assert_eq!(tokenize("()").unwrap(), vec!(Token::OpenParen, Token::CloseParen));
 }
 
 #[test]
 fn braces_test() {
-    assert_eq!(tokenize("[]"), Ok(vec!(Token::OpenBrace, Token::CloseBrace)));
+    assert_eq!(tokenize("[]").unwrap(), vec!(Token::OpenBrace, Token::CloseBrace));
 }
 
 #[test]
 fn single_identifier_test() {
-    assert_eq!(tokenize("test"), Ok(vec!(Token::Ident("test".to_string()))));
+    assert_eq!(tokenize("test").unwrap(), vec!(Token::Ident("test".to_string())));
 }
 
 #[test]
 fn single_str_test() {
-    assert_eq!(tokenize("\"test\""), Ok(vec!(Token::StrTok("test".to_string()))));
+    assert_eq!(tokenize("\"test\"").unwrap(), vec!(Token::StrTok("test".to_string())));
 }
 
 #[test]
 fn parens_and_identifier_test() {
-    assert_eq!(tokenize("(test)"), Ok(vec!(
+    assert_eq!(tokenize("(test)").unwrap(), vec!(
         Token::OpenParen,
         Token::Ident("test".to_string()),
         Token::CloseParen
-    )));
+    ));
 }
 
 #[test]
 fn identifier_and_comment_test() {
-    assert_eq!(tokenize("test; this is a comment"), Ok(vec!(
+    assert_eq!(tokenize("test; this is a comment").unwrap(), vec!(
         Token::Ident("test".to_string()),
-    )));
+    ));
 }

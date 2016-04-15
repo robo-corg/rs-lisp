@@ -1,12 +1,61 @@
-#![feature(io)]
-
-use std::old_io::stdio::print;
-use std::fmt::{Debug, Display, Formatter, Error};
+use std::io;
+use std::fmt;
+use std::error;
+use std::fmt::{Debug, Display, Formatter};
 use std::collections::HashMap;
 
 use builtin::add_builtins;
 
-pub type RuntimeResult = Result<Expr, String>;
+#[derive(Debug)]
+pub enum Error {
+    IOError(io::Error),
+    Panic(String)
+}
+
+pub type RuntimeResult = Result<Expr, Error>;
+
+
+impl From<io::Error> for Error {
+    fn from(io_error : io::Error) -> Error {
+        return Error::IOError(io_error);
+    }
+}
+
+impl From<&'static str> for Error {
+    fn from(s : &'static str) -> Error {
+        return Error::Panic(s.to_string());
+    }
+}
+
+impl From<String> for Error {
+    fn from(s : String) -> Error {
+        return Error::Panic(s);
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        return match *self {
+            Error::IOError(ref err) => err.description(),
+            Error::Panic(ref s) => s
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::IOError(ref err) => err.cause(),
+            Error::Panic(_) => None
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        return formatter.write_str(
+            &format!("{:?}", self)
+        );
+    }
+}
 
 pub struct BuiltInFun<'a> {
     pub name:&'a str,
@@ -20,7 +69,7 @@ impl<'a> PartialEq for BuiltInFun<'a> {
 }
 
 impl<'a> Debug for BuiltInFun<'a> {
-    fn fmt(&self, f:&mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f:&mut Formatter) -> Result<(), fmt::Error> {
         return f.write_str(&self.name);
     }
 }
@@ -39,7 +88,7 @@ pub enum Expr {
 }
 
 impl Display for Expr {
-    fn fmt(&self, f:&mut Formatter) -> Result<(), Error> {
+    fn fmt(&self, f:&mut Formatter) -> Result<(), fmt::Error> {
         return match self {
             &Expr::SExpr(_) => f.write_str("SExpr"),
             &Expr::Ident(_) => f.write_str("Identifier"),

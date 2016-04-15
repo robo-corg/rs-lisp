@@ -1,8 +1,6 @@
 use tokenizer::Token;
 use std::iter::Peekable;
-use runtime::{Expr, RuntimeResult};
-
-
+use runtime::{Expr, RuntimeResult, Error};
 
 fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Iterator<Item=(&'b Token)>{
     let mut exprs = Vec::new();
@@ -25,7 +23,7 @@ fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Ite
                 }
             },
             None => {
-                return Err("Unexpected end of input".to_string());
+                return Err(Error::Panic("Unexpected end of input".to_string()));
             }
         }
     }
@@ -36,7 +34,11 @@ fn parse_sexpr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Ite
     match (start_paren, close_paren) {
         (&Token::OpenParen, &Token::CloseParen) |
         (&Token::OpenBrace, &Token::CloseBrace) => {},
-        _ => { return Err(format!("Starting {} does not mach closing {}", start_paren, close_paren)); }
+        _ => {
+            return Err(
+                Error::from(format!("Starting {} does not mach closing {}", start_paren, close_paren))
+            );
+        }
     }
 
     return Ok(Expr::SExpr(exprs));
@@ -61,7 +63,9 @@ fn parse_expr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Iter
                 //return Err(format!("Unexpected token: {}", unexpected));
             //},
             Some(_) => {
-                return Err("Unexpected token".to_string());
+                return Err(
+                    Error::from("Unexpected token")
+                );
             },
             None => { break; }
         }
@@ -71,7 +75,7 @@ fn parse_expr<'a, 'b, I>(piter: &mut Peekable<I>) -> RuntimeResult where I: Iter
 }
 
 
-pub fn parse<'a, 'b, I>(iter: I) -> Result<Vec<Expr>, String> where I: Iterator<Item=(&'b Token)>{
+pub fn parse<'a, 'b, I>(iter: I) -> Result<Vec<Expr>, Error> where I: Iterator<Item=(&'b Token)>{
     let mut piter = iter.peekable();
     let mut stmts: Vec<Expr> = Vec::new();
 
@@ -81,10 +85,8 @@ pub fn parse<'a, 'b, I>(iter: I) -> Result<Vec<Expr>, String> where I: Iterator<
             None => { break; }
         }
 
-        match parse_expr(piter.by_ref()) {
-            Ok(stmt) => stmts.push(stmt),
-            Err(e) => return Err(e)
-        }
+        let stmt = try!(parse_expr(piter.by_ref()));
+        stmts.push(stmt);
     }
 
     return Ok(stmts);
@@ -93,8 +95,8 @@ pub fn parse<'a, 'b, I>(iter: I) -> Result<Vec<Expr>, String> where I: Iterator<
 #[test]
 fn test_parse_empty_s_expr() {
     assert_eq!(
-        parse(vec!(Token::OpenParen, Token::CloseParen).iter()),
-        Ok(vec!(Expr::SExpr(Vec::new())))
+        parse(vec!(Token::OpenParen, Token::CloseParen).iter()).unwrap(),
+        vec!(Expr::SExpr(Vec::new()))
     );
 }
 
@@ -105,15 +107,15 @@ fn test_paren_matching() {
             Token::OpenParen,
             Token::OpenBrace,
             Token::CloseBrace,
-            Token::CloseParen).iter()),
-        Ok(vec!(Expr::SExpr(vec!(Expr::SExpr(vec!())))))
+            Token::CloseParen).iter()).unwrap(),
+        vec!(Expr::SExpr(vec!(Expr::SExpr(vec!()))))
     );
 }
 
 #[test]
 fn test_parse_s_expr_with_ident() {
     assert_eq!(
-        parse(vec!(Token::OpenParen, Token::Ident("print".to_string()), Token::CloseParen).iter()),
-        Ok(vec!(Expr::SExpr(vec!(Expr::Ident("print".to_string())))))
+        parse(vec!(Token::OpenParen, Token::Ident("print".to_string()), Token::CloseParen).iter()).unwrap(),
+        vec!(Expr::SExpr(vec!(Expr::Ident("print".to_string()))))
     );
 }

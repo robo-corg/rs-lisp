@@ -1,13 +1,14 @@
-use runtime::{Expr, Scope, RuntimeResult};
+use runtime::{Expr, Scope, RuntimeResult, Error};
 
 fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
+    println!("Call expr");
     match expr {
         &Expr::BuiltInFun(builtin) => {
             let fun = builtin.fun;
             fun(scope, args)
         },
-        unexpected => {
-            return Err(format!("Expected function not {}", unexpected));
+        _ => {
+            return Err(Error::from("Expected function"));
         }
     }
 }
@@ -18,8 +19,8 @@ fn expand_macro(scope:&mut Scope, mac:&Expr, args:&[Expr]) -> RuntimeResult {
             let fun = mac_fun.fun;
             return fun(scope, args);
         },
-        unexpected => {
-            return Err(format!("Expected macro not {}", unexpected));
+        _ => {
+            return Err(Error::from("Expected macro not {}"));
         }
     }
 }
@@ -31,7 +32,7 @@ fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
 
             match lead_expr {
                 Expr::Macro(_) => {
-                    let expanded =try!(expand_macro(scope, &lead_expr, &sub_exprs[1..]));
+                    let expanded = try!(expand_macro(scope, &lead_expr, &sub_exprs[1..]));
                     return eval_expr(scope, &expanded);
                 },
                 _ => {
@@ -42,19 +43,20 @@ fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
                 }
             }
         },
-        &Expr::Ident(ref ident) => match scope.lookup_ident(ident.as_slice()) {
+        &Expr::Ident(ref ident) => match scope.lookup_ident(ident) {
             Some(ref value) => Ok((*value).clone()),
-            None => Err(format!("Unknown identifier {}", ident))
+            None => Err(Error::from(format!("Unknown identifier {}", ident)))
         },
         val => Ok(val.clone())
     };
 }
 
-pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> RuntimeResult{
+pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> RuntimeResult {
     let mut last_expr = Expr::Nil;
 
     for expr in exprs.iter() {
         last_expr = try!(eval_expr(scope, &expr));
+        println!("done");
     }
 
     return Ok(last_expr);
@@ -74,7 +76,27 @@ fn test_eval_sexpr() {
     );
 
     assert_eq!(
-        res,
-        Ok(Expr::Integer(4))
+        res.unwrap(),
+        Expr::Integer(4)
+    );
+}
+
+#[test]
+#[should_panic]
+fn test_lookup_missing() {
+    let mut scope = Scope::new();
+
+    let res = eval_expr(
+        &mut scope,
+        &Expr::SExpr(vec!(
+            Expr::Ident("barf".to_string()),
+            Expr::Integer(3),
+            Expr::Integer(1)
+        ))
+    );
+
+    assert_eq!(
+        res.unwrap(),
+        Expr::Integer(4)
     );
 }
