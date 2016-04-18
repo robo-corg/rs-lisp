@@ -10,14 +10,14 @@ use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 #[allow(unused_imports)]
-use runtime::{Expr, Scope, RuntimeResult};
+use runtime::{Expr, RuntimeThread, RuntimeResult};
 use read::read;
 use interp::eval;
 #[allow(unused_imports)]
 use std::str::from_utf8;
 use std::env::args;
 
-fn eval_file(scope:&mut Scope, filename:&str) -> RuntimeResult {
+fn eval_file(scope:&mut RuntimeThread, filename:&str) -> RuntimeResult {
     let mut buffer = String::new();
     let mut file = try!(File::open(filename));
 
@@ -39,7 +39,7 @@ fn main() {
 
     let filename = &argv[1];
 
-    match eval_file(&mut Scope::new(), filename) {
+    match eval_file(&mut RuntimeThread::new(), filename) {
         Ok(_) => {},
         Err(msg) => { println!("Error: {}", msg); }
     }

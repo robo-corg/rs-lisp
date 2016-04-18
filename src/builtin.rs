@@ -1,28 +1,45 @@
 use std::io;
 use std::io::prelude::*;
-use runtime::{BuiltInFun, Expr, Scope, RuntimeResult, Error};
+use runtime::{BuiltInFun, Expr, RuntimeThread, RuntimeResult, Error};
 
-fn add_expr(lhs:&Expr, rhs:&Expr) -> RuntimeResult {
-    match (lhs, rhs) {
-        (&Expr::Integer(lhs_i), &Expr::Integer(rhs_i)) => Ok(Expr::Integer(lhs_i + rhs_i)),
-        (_, _) => Err(Error::from(format!("Can't add {} and {}", rhs, lhs))),
+macro_rules! _as_ident {
+    ( $tok:ident ) => { $tok }
+}
+
+fn expr_to_int(expr:&Expr) -> Result<i64, Error> {
+    match expr {
+        &Expr::Integer(val) => Ok(val),
+        _ => Err(Error::from("Could not convert argument"))
     }
 }
 
-fn do_add_builtin(_:&mut Scope, args:&[Expr]) -> RuntimeResult {
-    if args.len() == 2 {
-        return add_expr(&args[0], &args[1]);
-    }
+fn perform_binary_op<F>(args:&[Expr], init:i64, op:F) -> RuntimeResult 
+    where F : FnMut(i64,&i64) -> i64 {
+    let int_args : Vec<i64> = try!(args.iter().map(expr_to_int).collect());
 
-    return Err(Error::from(format!("Invalid number of arguments {}", args.len())));
+    let val : i64 = i64::from(
+        int_args.iter().fold(init, op)
+    );
 
-    //let start = Expr::Integer(0);
-
-    //return fold(args.iter(), start, add_expr);
+    return Ok(Expr::from(val));
 }
+
+macro_rules! def_build_binary_op {
+    (  $name:ident, $init:expr, $op:expr  ) => {
+        fn $name (_:&mut RuntimeThread, args:&[Expr]) -> RuntimeResult {
+            return perform_binary_op(args, $init, $op);
+        }
+    };
+}
+
+def_build_binary_op!(do_add_builtin, 0, |a,b| a + b);
+def_build_binary_op!(do_sub_builtin, 0, |a,b| a - b);
+def_build_binary_op!(do_mul_builtin, 1, |a,b| a * b);
+def_build_binary_op!(do_div_builtin, 1, |a,b| a / b);
+
 
 #[allow(dead_code)]
-fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> RuntimeResult {
+fn do_print_builtin(_:&mut RuntimeThread, args:&[Expr]) -> RuntimeResult {
     for arg in args.iter() {
         match arg {
             &Expr::SExpr(_) => {
@@ -43,13 +60,13 @@ fn do_print_builtin(_:&mut Scope, args:&[Expr]) -> RuntimeResult {
     return Ok(Expr::Nil);
 }
 
-fn do_println_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
+fn do_println_builtin(scope:&mut RuntimeThread, args:&[Expr]) -> RuntimeResult {
     let res = do_print_builtin(scope, args);
     println!("");
     return res;
 }
 
-fn do_def_macro_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
+fn do_def_macro_builtin(scope:&mut RuntimeThread, args:&[Expr]) -> RuntimeResult {
     if args.len() != 2 {
         return Err(Error::from(format!("Invalid number of arguments got {}", args.len())));
     }
@@ -61,29 +78,40 @@ fn do_def_macro_builtin(scope:&mut Scope, args:&[Expr]) -> RuntimeResult {
 
     let ref value = args[1];
 
-    scope.defs.insert(name.clone(), value.clone());
+    scope.def(name, value);
+
     return Ok(value.clone());
 }
 
-static BUILTIN_FUNS : [BuiltInFun<'static>;3] = [
+static BUILTIN_FUNS : [BuiltInFun<'static>;6] = [
     BuiltInFun{ name: "+", fun: do_add_builtin},
-    BuiltInFun{ name: "print", fun: do_print_builtin},
+    BuiltInFun{ name: "-", fun: do_sub_builtin},
+    BuiltInFun{ name: "*", fun: do_mul_builtin},
+    BuiltInFun{ name: "/", fun: do_div_builtin},
+    BuiltInFun{ name: "display", fun: do_print_builtin},
     BuiltInFun{ name: "println", fun: do_println_builtin},
 ];
 
 static BUILTIN_MACROS : [BuiltInFun<'static>;1] = [
     BuiltInFun{
-        name: "def",
+        name: "define",
         fun: do_def_macro_builtin,
     },
 ];
 
-pub fn add_builtins(scope:&mut Scope) {
+pub fn add_builtins(scope:&mut RuntimeThread) {
     for builtin in BUILTIN_MACROS.iter() {
-        scope.defs.insert(builtin.name.to_string(), Expr::Macro(builtin));
+        scope.def(builtin.name, &Expr::Macro(builtin));
     }
 
     for builtin in BUILTIN_FUNS.iter() {
-        scope.defs.insert(builtin.name.to_string(), Expr::BuiltInFun(builtin));
+        scope.def(builtin.name, &Expr::BuiltInFun(builtin));
     }
+}
+
+#[test]
+fn test_add_buildin() {
+    let actual = do_add_builtin(&mut RuntimeThread::new(), &vec!(Expr::Integer(40), Expr::Integer(1), Expr::Integer(1)));
+
+    assert_eq!(actual.unwrap(), Expr::Integer(42));
 }

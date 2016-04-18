@@ -130,6 +130,17 @@ fn parens_and_identifier_test() {
 }
 
 #[test]
+fn comment_test() {
+    assert_eq!(tokenize("; this is a comment").unwrap(), vec!());
+}
+
+
+#[test]
+fn multiple_comment_test() {
+    assert_eq!(tokenize("; this is a comment\n; this is another comment").unwrap(), vec!());
+}
+
+#[test]
 fn identifier_and_comment_test() {
     assert_eq!(tokenize("test; this is a comment").unwrap(), vec!(
         Token::Ident("test".to_string()),

@@ -1,7 +1,6 @@
-use runtime::{Expr, Scope, RuntimeResult, Error};
+use runtime::{Expr, RuntimeThread, RuntimeResult, Error};
 
-fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
-    println!("Call expr");
+fn call_expr(scope:&mut RuntimeThread, expr:&Expr, args:&[Expr]) -> RuntimeResult {
     match expr {
         &Expr::BuiltInFun(builtin) => {
             let fun = builtin.fun;
@@ -13,7 +12,7 @@ fn call_expr(scope:&mut Scope, expr:&Expr, args:&[Expr]) -> RuntimeResult {
     }
 }
 
-fn expand_macro(scope:&mut Scope, mac:&Expr, args:&[Expr]) -> RuntimeResult {
+fn expand_macro(scope:&mut RuntimeThread, mac:&Expr, args:&[Expr]) -> RuntimeResult {
     match mac {
         &Expr::Macro(mac_fun) => {
             let fun = mac_fun.fun;
@@ -25,7 +24,7 @@ fn expand_macro(scope:&mut Scope, mac:&Expr, args:&[Expr]) -> RuntimeResult {
     }
 }
 
-fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
+fn eval_expr(scope:&mut RuntimeThread, expr:&Expr) -> RuntimeResult {
     return match expr {
         &Expr::SExpr(ref sub_exprs) => {
             let lead_expr = try!(eval_expr(scope, &sub_exprs[0]));
@@ -51,7 +50,7 @@ fn eval_expr(scope:&mut Scope, expr:&Expr) -> RuntimeResult {
     };
 }
 
-pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> RuntimeResult {
+pub fn eval(scope:&mut RuntimeThread, exprs:Vec<Expr>) -> RuntimeResult {
     let mut last_expr = Expr::Nil;
 
     for expr in exprs.iter() {
@@ -64,7 +63,7 @@ pub fn eval(scope:&mut Scope, exprs:Vec<Expr>) -> RuntimeResult {
 
 #[test]
 fn test_eval_sexpr() {
-    let mut scope = Scope::new();
+    let mut scope = RuntimeThread::new();
 
     let res = eval_expr(
         &mut scope,
@@ -84,7 +83,7 @@ fn test_eval_sexpr() {
 #[test]
 #[should_panic]
 fn test_lookup_missing() {
-    let mut scope = Scope::new();
+    let mut scope = RuntimeThread::new();
 
     let res = eval_expr(
         &mut scope,

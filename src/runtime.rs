@@ -59,7 +59,7 @@ impl fmt::Display for Error {
 
 pub struct BuiltInFun<'a> {
     pub name:&'a str,
-    pub fun:fn (scope:&mut Scope, &[Expr]) -> RuntimeResult,
+    pub fun:fn (scope:&mut RuntimeThread, &[Expr]) -> RuntimeResult,
 }
 
 impl<'a> PartialEq for BuiltInFun<'a> {
@@ -87,6 +87,12 @@ pub enum Expr {
     Nil
 }
 
+impl From<i64> for Expr {
+    fn from(s : i64) -> Expr {
+        return Expr::Integer(s);
+    }
+}
+
 impl Display for Expr {
     fn fmt(&self, f:&mut Formatter) -> Result<(), fmt::Error> {
         return match self {
@@ -101,21 +107,51 @@ impl Display for Expr {
     }
 }
 
+pub struct RuntimeThread {
+    stack : Vec<Scope>
+}
+
+impl RuntimeThread {
+    pub fn new() -> RuntimeThread {
+        let mut thread = RuntimeThread{stack:Vec::new()};
+
+        thread.start_scope();
+        add_builtins(&mut thread);
+
+        return thread;
+    }
+
+    pub fn start_scope(&mut self) {
+        self.stack.push(Scope::new());
+    }
+
+    pub fn lookup_ident(&self, s:&str) -> Option<&Expr> {
+        return self.stack.last().and_then(
+            |scope| scope.lookup_ident(s)
+        );
+    }
+
+    pub fn def(&mut self, name : &str, value : &Expr) {
+        self.stack.last_mut().unwrap().def(name, value);
+    }
+}
+
 pub struct Scope {
-    pub defs:HashMap<String, Expr>,
+    pub defs : HashMap<String, Expr>,
 }
 
 impl Scope {
     pub fn new() -> Scope {
         let mut scope = Scope{defs:HashMap::new()};
-
-        add_builtins(&mut scope);
-
         return scope;
     }
 
     pub fn lookup_ident(&self, s:&str) -> Option<&Expr> {
         return self.defs.get(s);
+    }
+
+    pub fn def(&mut self, name : &str, value : &Expr) {
+        self.defs.insert(name.to_string().clone(), value.clone());
     }
 }
 
