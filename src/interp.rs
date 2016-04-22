@@ -2,9 +2,8 @@ use runtime::{Expr, RuntimeThread, RuntimeResult, Error};
 
 fn call_expr(scope:&mut RuntimeThread, expr:&Expr, args:&[Expr]) -> RuntimeResult {
     match expr {
-        &Expr::BuiltInFun(builtin) => {
-            let fun = builtin.fun;
-            fun(scope, args)
+        &Expr::Function(ref builtin) => {
+            (builtin.fun)(scope, args)
         },
         _ => {
             return Err(Error::from("Expected function"));
@@ -14,9 +13,8 @@ fn call_expr(scope:&mut RuntimeThread, expr:&Expr, args:&[Expr]) -> RuntimeResul
 
 fn expand_macro(scope:&mut RuntimeThread, mac:&Expr, args:&[Expr]) -> RuntimeResult {
     match mac {
-        &Expr::Macro(mac_fun) => {
-            let fun = mac_fun.fun;
-            return fun(scope, args);
+        &Expr::Macro(ref mac_fun) => {
+            (mac_fun.fun)(scope, args)
         },
         _ => {
             return Err(Error::from("Expected macro not {}"));
